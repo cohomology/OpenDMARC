@@ -4000,7 +4000,6 @@ static void
 dmarcf_config_free(struct dmarcf_config *conf)
 {
 	assert(conf != NULL);
-	assert(conf->conf_refcnt == 0);
 
 	if (conf->conf_data != NULL)
 		config_free(conf->conf_data);
