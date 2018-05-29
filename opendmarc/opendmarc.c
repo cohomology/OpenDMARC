@@ -2974,14 +2974,22 @@ mlfi_eom(SMFICTX *ctx)
 			if (spf_mode == DMARC_POLICY_SPF_ORIGIN_HELO)
 			{
 				snprintf(header, sizeof header,
-					 "%s; spf=%s smtp.helo=%s",
-					 authservid, pass_fail, use_domain);
+					 "%s%s%s; spf=%s smtp.helo=%s",
+					 authservid,
+				         conf->conf_authservidwithjobid ? "/" : "",
+				         conf->conf_authservidwithjobid ? dfc->mctx_jobid : "",
+					 pass_fail, use_domain);
 			}
 			else
 			{
 				snprintf(header, sizeof header,
-					 "%s; spf=%s smtp.mailfrom=%s",
-					 authservid, pass_fail, use_domain);
+					 "%s%s%s; spf=%s smtp.mailfrom=%s",
+					 authservid,
+				         conf->conf_authservidwithjobid ? "/" : "",
+				         conf->conf_authservidwithjobid ? dfc->mctx_jobid : "",
+					 pass_fail, use_domain);
+
+
 			}
 
 			if (dmarcf_insheader(ctx, 1, AUTHRESULTSHDR,
