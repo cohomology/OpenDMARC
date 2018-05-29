@@ -125,7 +125,7 @@ above).  May be specified more than once to request increasing amounts of
 output.
 .TP
 .I \-V
-Print the version number and supported canonicalization and signature
+Print the version number, whether SPF support is compiled in and libmilter version
 algorithms, and then exit without doing anything else.
 .SH SIGNALS
 Upon receiving SIGUSR1, if the filter was started with a configuration
@@ -159,8 +159,10 @@ RFC5321 \- Simple Mail Transfer Protocol
 .P
 RFC5322 \- Internet Messages
 .P
-RFC5451 \- Message Header Field for Indicating Message Authentication Status
-.P
 RFC6376 \- DomainKeys Identified Mail
 .P
 RFC6591 \- Authentication Failure Reporting Using the Abuse Reporting Format
+.P
+RFC7489 \- Domain-based Message Authentication, Reporting, and Conformance (DMARC)
+.P
+RFC7601 \- Message Header Field for Indicating Message Authentication Status

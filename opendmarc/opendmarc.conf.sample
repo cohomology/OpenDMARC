@@ -286,12 +286,12 @@
 # RejectFailures false
 
 ##  ReportCommand string
-##  	default "/usr/sbin/sendmail -t"
+##  	default "/usr/sbin/sendmail -t -odq"
 ##
 ##  Indicates the shell command to which failure reports should be passed for
 ##  delivery when "FailureReports" is enabled.
 #
-# ReportCommand /usr/sbin/sendmail -t
+# ReportCommand /usr/sbin/sendmail -t -odq
 
 ##  RequiredHeaders { true | false }
 ##  	default "false"
@@ -370,8 +370,10 @@
 ##  	default HOSTNAME
 ##
 ##  Specifies one or more "authserv-id" values to trust as relaying true
-##  upstream DKIM and SPF results.  The default is to use the name of
-##  the MTA processing the message.  To specify a list, separate each entry
+##  upstream DKIM and SPF results.  If AuthservIDWithJobID is set and the
+##  authserv-ids of the inspected AR header is not found in TrustedAuthservIDs
+##  then the JobID is appended when matching.  The default is to use the name of
+##  the MTA processing the message.   To specify a list, separate each entry
 ##  with a comma.  The key word "HOSTNAME" will be replaced by the name of
 ##  the host running the filter as reported by the gethostname(3) function.
 #
