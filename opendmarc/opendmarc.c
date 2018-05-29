@@ -2252,6 +2252,9 @@ mlfi_eom(SMFICTX *ctx)
 	unsigned char replybuf[BUFRSZ + 1];
 	unsigned char pdomain[MAXHOSTNAMELEN + 1];
 	struct authres ar;
+#if WITH_SPF
+	unsigned char spfheader[MAXHEADER + 1] = "";
+#endif
 
 	assert(ctx != NULL);
 
@@ -2964,35 +2967,17 @@ mlfi_eom(SMFICTX *ctx)
 
 			if (spf_mode == DMARC_POLICY_SPF_ORIGIN_HELO)
 			{
-				snprintf(header, sizeof header,
-					 "%s%s%s; spf=%s smtp.helo=%s",
-					 authservid,
-				         conf->conf_authservidwithjobid ? "/" : "",
-				         conf->conf_authservidwithjobid ? dfc->mctx_jobid : "",
+				snprintf(spfheader, sizeof spfheader,
+					 "; spf=%s smtp.helo=%s",
 					 pass_fail, use_domain);
 			}
 			else
 			{
-				snprintf(header, sizeof header,
-					 "%s%s%s; spf=%s smtp.mailfrom=%s",
-					 authservid,
-				         conf->conf_authservidwithjobid ? "/" : "",
-				         conf->conf_authservidwithjobid ? dfc->mctx_jobid : "",
+				snprintf(spfheader, sizeof spfheader,
+					 "; spf=%s smtp.mailfrom=%s",
 					 pass_fail, use_domain);
 
 
-			}
-
-			if (dmarcf_insheader(ctx, 1, AUTHRESULTSHDR,
-					     header) == MI_FAILURE)
-			{
-				if (conf->conf_dolog)
-				{
-					syslog(LOG_ERR,
-					       "%s: %s header add failed",
-					       dfc->mctx_jobid,
-					       AUTHRESULTSHDR);
-				}
 			}
 
 			if (conf->conf_dolog)
@@ -3045,8 +3030,13 @@ mlfi_eom(SMFICTX *ctx)
 		}
 
 		snprintf(header, sizeof header,
+#if WITH_SPF
+		         "%s; dmarc=permerror header.from=%s%s",
+		         authservid, dfc->mctx_fromdomain, spfheader);
+#else
 		         "%s; dmarc=permerror header.from=%s",
 		         authservid, dfc->mctx_fromdomain);
+#endif
 
 		if (dmarcf_insheader(ctx, 1, AUTHRESULTSHDR,
 		                     header) == MI_FAILURE)
@@ -3578,12 +3568,19 @@ mlfi_eom(SMFICTX *ctx)
 	if (ret != SMFIS_TEMPFAIL && ret != SMFIS_REJECT)
 	{
 		snprintf(header, sizeof header,
+#if WITH_SPF
+		         "%s%s%s; dmarc=%s (p=%s dis=%s) header.from=%s%s",
+		         authservid,
+		         conf->conf_authservidwithjobid ? "/" : "",
+		         conf->conf_authservidwithjobid ? dfc->mctx_jobid : "",
+		         aresult, apolicy, adisposition, dfc->mctx_fromdomain, spfheader);
+#else
 		         "%s%s%s; dmarc=%s (p=%s dis=%s) header.from=%s",
 		         authservid,
 		         conf->conf_authservidwithjobid ? "/" : "",
 		         conf->conf_authservidwithjobid ? dfc->mctx_jobid : "",
 		         aresult, apolicy, adisposition, dfc->mctx_fromdomain);
-
+#endif
 		if (dmarcf_insheader(ctx, 1, AUTHRESULTSHDR,
 		                     header) == MI_FAILURE)
 		{
