@@ -3281,11 +3281,17 @@ mlfi_eom(SMFICTX *ctx)
 
 			dmarcf_dstring_cat(dfc->mctx_afrf,
 			                   "Auth-Failure: dmarc\n");
-
+#if WITH_SPF
+			dmarcf_dstring_printf(dfc->mctx_afrf,
+			                      "Authentication-Results: %s; dmarc=fail header.from=%s%s\n",
+			                      authservid,
+			                      dfc->mctx_fromdomain, spfheader);
+#else
 			dmarcf_dstring_printf(dfc->mctx_afrf,
 			                      "Authentication-Results: %s; dmarc=fail header.from=%s\n",
 			                      authservid,
 			                      dfc->mctx_fromdomain);
+#endif
 
 			dmarcf_dstring_printf(dfc->mctx_afrf,
 			                      "Original-Envelope-Id: %s\n",
