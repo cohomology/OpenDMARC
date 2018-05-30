@@ -21,6 +21,11 @@
 # include <bsd/string.h>
 #endif /* USE_BSD_H */
 
+/* libstrl if needed */
+#ifdef USE_STRL_H
+# include <strl.h>
+#endif /* USE_STRL_H */
+
 #include "opendmarc-arcares.h"
 #include "opendmarc.h"
 
@@ -308,7 +313,7 @@ opendmarc_arcares_arc_parse (u_char *hdr_arc, struct arcares_arc_field *arc)
 	memset(arc, '\0', sizeof *arc);
 	memset(tmp, '\0', sizeof tmp);
 
-	memcpy(tmp, hdr_arc, MIN_OF(strlen(hdr_arc), sizeof tmp - 1));
+	memcpy(tmp, hdr_arc, MIN(strlen(hdr_arc), sizeof tmp - 1));
 
 	while ((token = strsep((char **)&tmp_ptr, " ;")) != NULL)
 	{

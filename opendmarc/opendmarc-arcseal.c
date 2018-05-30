@@ -23,6 +23,11 @@
 #include "opendmarc-arcseal.h"
 #include "opendmarc.h"
 
+/* libstrl if needed */
+#ifdef USE_STRL_H
+# include <strl.h>
+#endif /* USE_STRL_H */
+
 #define OPENDMARC_ARCSEAL_MAX_FIELD_NAME_LEN 255
 #define OPENDMARC_ARCSEAL_MAX_TOKEN_LEN      512
 
