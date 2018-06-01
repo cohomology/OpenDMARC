@@ -2542,7 +2542,7 @@ mlfi_eom(SMFICTX *ctx)
 				if (conf->conf_dolog)
 				{
 					syslog(LOG_DEBUG,
-					       "%s ignoring Authentication-Results at %d from %s",
+					       "%s: ignoring Authentication-Results at %d from %s",
 					       dfc->mctx_jobid, c,
 					       ar.ares_host);
 				}
@@ -2556,7 +2556,7 @@ mlfi_eom(SMFICTX *ctx)
 				if (conf->conf_dolog)
 				{
 					syslog(LOG_DEBUG,
-					       "%s ignoring Authentication-Results at %d from %s",
+					       "%s: ignoring Authentication-Results at %d from %s",
 					       dfc->mctx_jobid, c,
 					       ar.ares_host);
 				}
@@ -2577,7 +2577,7 @@ mlfi_eom(SMFICTX *ctx)
 				if (conf->conf_dolog)
 				{
 					syslog(LOG_DEBUG,
-					       "%s ignoring Authentication-Results at %d from %s",
+					       "%s: ignoring Authentication-Results at %d from %s",
 					       dfc->mctx_jobid, c,
 					       ar.ares_host);
 				}
