@@ -1074,7 +1074,7 @@ opendmarc_policy_parse_dmarc(DMARC_POLICY_T *pctx, u_char *domain, u_char *recor
 					*yp = '\0';
 
 				xp = opendmarc_util_cleanup(xp, xbuf, sizeof xbuf);
-				if (xp != NULL || strlen((char *)xp) > 0)
+				if (xp != NULL && strlen((char *)xp) > 0)
 				{
 					/*
 					 * Be generous. Accept, for example, "rf=a, aspf=afrf or any
@@ -1116,7 +1116,7 @@ opendmarc_policy_parse_dmarc(DMARC_POLICY_T *pctx, u_char *domain, u_char *recor
 					*yp = '\0';
 
 				xp = opendmarc_util_cleanup(xp, xbuf, sizeof xbuf);
-				if (xp != NULL || strlen((char *)xp) > 0)
+				if (xp != NULL && strlen((char *)xp) > 0)
 				{
 					pctx->rua_list = opendmarc_util_pushargv(xp, pctx->rua_list,
 										&(pctx->rua_cnt));
@@ -1148,7 +1148,7 @@ opendmarc_policy_parse_dmarc(DMARC_POLICY_T *pctx, u_char *domain, u_char *recor
 					*yp = '\0';
 
 				xp = opendmarc_util_cleanup(xp, xbuf, sizeof xbuf);
-				if (xp != NULL || strlen((char *)xp) > 0)
+				if (xp != NULL && strlen((char *)xp) > 0)
 				{
 					pctx->ruf_list = opendmarc_util_pushargv(xp, pctx->ruf_list,
 										&(pctx->ruf_cnt));
@@ -1175,7 +1175,7 @@ opendmarc_policy_parse_dmarc(DMARC_POLICY_T *pctx, u_char *domain, u_char *recor
 					*yp = '\0';
 
 				xp = opendmarc_util_cleanup(xp, xbuf, sizeof xbuf);
-				if (xp != NULL || strlen((char *)xp) > 0)
+				if (xp != NULL && strlen((char *)xp) > 0)
 				{
 					switch ((int)*xp)
 					{
