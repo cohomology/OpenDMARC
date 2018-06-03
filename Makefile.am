@@ -24,6 +24,8 @@ ACLOCAL		= aclocal -I $(auxdir)
 dist_doc_DATA = LICENSE LICENSE.Sendmail db/README.schema db/schema.mysql \
 	docs/README.specs.html
 
+EXTRA_DIST = www/index.html
+
 DISTCLEANFILES = opendmarc-@VERSION@.tar.gz
 
 DISTCHECK_CONFIGURE_FLAGS=--enable-filter-tests
