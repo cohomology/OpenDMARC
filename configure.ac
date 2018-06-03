@@ -502,7 +502,6 @@ AC_OUTPUT([ Makefile
 		contrib/service/opendmarc.service
 	contrib/spec/Makefile
 		contrib/spec/opendmarc.spec
-	docs/Makefile
 	libopendmarc/Makefile
 	libopendmarc/tests/Makefile
 	libopendmarc/tests/testfiles/Makefile

@@ -3,7 +3,7 @@ ACLOCAL_AMFLAGS = -I m4
 libdir=@LIBDMARC_DIR@/lib
 includedir=@LIBDMARC_DIR@/include
 
-SUBDIRS		= contrib docs libopendmarc reports
+SUBDIRS		= contrib libopendmarc reports
 if BUILD_FILTER
 SUBDIRS         += opendmarc
 endif
@@ -21,7 +21,8 @@ MAINTAINERCLEANFILES 	= Makefile.in aclocal.m4 configure \
 
 ACLOCAL		= aclocal -I $(auxdir)
 
-dist_doc_DATA = LICENSE LICENSE.Sendmail db/README.schema db/schema.mysql
+dist_doc_DATA = LICENSE LICENSE.Sendmail db/README.schema db/schema.mysql \
+	docs/README.specs.html
 
 DISTCLEANFILES = opendmarc-@VERSION@.tar.gz
 
