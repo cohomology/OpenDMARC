@@ -87,7 +87,6 @@
 
 /* macros */
 #define	CMDLINEOPTS			"Ac:flnp:P:t:u:vV"
-#define	DEFTIMEOUT			5
 #define	MAXSPFRESULT			16
 #define	RECEIVEDSPF			"Received-SPF"
 #define HIST_MAX_ARCSEAL_LIST_LEN	2048
@@ -178,7 +177,6 @@ struct dmarcf_config
 #endif /* WITH_SPF */
 	_Bool			conf_ignoreauthclients;
 	unsigned int		conf_refcnt;
-	unsigned int		conf_dnstimeout;
 	struct config *		conf_data;
 	char *			conf_afrfas;
 	char *			conf_afrfbcc;
@@ -1320,13 +1318,6 @@ dmarcf_config_load(struct config *data, struct dmarcf_config *conf,
 		(void) config_get(data, "CopyFailuresTo",
 		                  &conf->conf_copyfailsto,
 		                  sizeof conf->conf_copyfailsto);
-
-		if (conf->conf_dnstimeout == DEFTIMEOUT)
-		{
-			(void) config_get(data, "DNSTimeout",
-			                  &conf->conf_dnstimeout,
-			                  sizeof conf->conf_dnstimeout);
-		}
 
 		(void) config_get(data, "EnableCoredumps",
 		                  &conf->conf_enablecores,

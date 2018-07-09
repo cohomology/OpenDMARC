@@ -145,11 +145,6 @@ final size will be increased by approximately 20% to increase the efficiency of
 the hashing algorithm.
 
 .TP
-.I DNSTimeout (integer)
-Sets the DNS timeout in seconds.  A value of 0 causes an infinite wait.
-The default is 5.  Ignored if not using an asynchronous resolver package.
-
-.TP
 .I EnableCoredumps (Boolean)
 On systems that have such support, make an explicit request to the kernel
 to dump cores when the filter crashes for some reason.  Some modern UNIX
