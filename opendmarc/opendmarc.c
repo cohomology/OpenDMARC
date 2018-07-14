@@ -3283,13 +3283,13 @@ mlfi_eom(SMFICTX *ctx)
 			                   "Auth-Failure: dmarc\n");
 #if WITH_SPF
 			dmarcf_dstring_printf(dfc->mctx_afrf,
-			                      "Authentication-Results: %s; dmarc=fail header.from=%s%s\n",
-			                      authservid,
+			                      "Authentication-Results: %s; dmarc=fail (pct=%i) header.from=%s%s\n",
+			                      authservid, pct,
 			                      dfc->mctx_fromdomain, spfheader);
 #else
 			dmarcf_dstring_printf(dfc->mctx_afrf,
-			                      "Authentication-Results: %s; dmarc=fail header.from=%s\n",
-			                      authservid,
+			                      "Authentication-Results: %s; dmarc=fail (pct=%i) header.from=%s\n",
+			                      authservid, pct,
 			                      dfc->mctx_fromdomain);
 #endif
 
