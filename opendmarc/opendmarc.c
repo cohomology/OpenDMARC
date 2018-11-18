@@ -3494,8 +3494,24 @@ mlfi_eom(SMFICTX *ctx)
 			                      "This is an authentication "
 			                      "failure report for an email "
 			                      "message received from IP\n"
-			                      "%s on %s.\n\n",
+			                      "%s on %s.  The message was ",
 			                      cc->cctx_ipstr, timebuf);
+			switch (result) {
+			  case DMARC_RESULT_REJECT:
+				dmarcf_dstring_printf(dfc->mctx_afrf, "rejected.\n\n");
+				break;
+			  case DMARC_RESULT_QUARANTINE:
+				dmarcf_dstring_printf(dfc->mctx_afrf, "quarantined.\n\n");
+				break;
+			  case DMARC_RESULT_TEMPFAIL:
+				dmarcf_dstring_printf(dfc->mctx_afrf, "temporary rejected.\n\n");
+				break;
+			  case DMARC_RESULT_ACCEPT:
+				dmarcf_dstring_printf(dfc->mctx_afrf, "delivered.\n\n");
+				break;
+			  default: /* impossible */
+				assert(0);
+			}
 
 			dmarcf_dstring_printf(dfc->mctx_afrf,
 			                      "--%s:%s\n"
@@ -3531,6 +3547,29 @@ mlfi_eom(SMFICTX *ctx)
 			dmarcf_dstring_printf(dfc->mctx_afrf,
 			                      "Original-Mail-From: %s\n",
 			                      dfc->mctx_envfrom);
+
+			dmarcf_dstring_printf(dfc->mctx_afrf,
+			                      "Arrival-Date: %s\n", timebuf);
+
+			switch (result) {
+			  case DMARC_RESULT_REJECT:
+				dmarcf_dstring_printf(dfc->mctx_afrf,
+						"Delivery-Result: reject\n");
+				break;
+			  case DMARC_RESULT_QUARANTINE:
+				dmarcf_dstring_printf(dfc->mctx_afrf,
+						"Delivery-Result: policy\n");
+				break;
+			  case DMARC_RESULT_TEMPFAIL:
+				dmarcf_dstring_printf(dfc->mctx_afrf,
+						"Delivery-Result: other\n");
+				break;
+			  case DMARC_RESULT_ACCEPT:
+				dmarcf_dstring_printf(dfc->mctx_afrf,
+						"Delivery-Result: delivered\n");
+				break;
+			  /* default: impossible */
+			}
 
 			dmarcf_dstring_printf(dfc->mctx_afrf,
 			                      "Source-IP: %s (%s)\n",
