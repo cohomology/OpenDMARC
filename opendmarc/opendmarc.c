@@ -3118,6 +3118,237 @@ mlfi_eom(SMFICTX *ctx)
 	}
 
 	/*
+	**  Enact policy based on DMARC results.
+	*/
+
+	result = DMARC_RESULT_ACCEPT;
+	ret = SMFIS_ACCEPT;
+
+	switch (policy)
+	{
+	  case DMARC_POLICY_ABSENT:		/* No DMARC record found */
+	  case DMARC_FROM_DOMAIN_ABSENT:	/* No From: domain */
+		aresult = "none";
+		break;
+
+	  case DMARC_POLICY_NONE:		/* Alignment failed, but policy is none: */
+		aresult = "fail";		/* Accept and report */
+		break;
+
+	  case DMARC_POLICY_PASS:		/* Explicit accept */
+		aresult = "pass";
+		break;
+
+	  case DMARC_POLICY_REJECT:		/* Explicit reject */
+		aresult = "fail";
+		ret = SMFIS_CONTINUE;
+
+		if (conf->conf_rejectfail && random() % 100 < pct)
+		{
+			snprintf(replybuf, sizeof replybuf,
+			         "rejected by DMARC policy for %s", pdomain);
+
+			status = dmarcf_setreply(ctx, DMARC_REJECT_SMTP,
+			                         DMARC_REJECT_ESC, replybuf);
+			if (status != MI_SUCCESS && conf->conf_dolog)
+			{
+				syslog(LOG_ERR, "%s: smfi_setreply() failed",
+				       dfc->mctx_jobid);
+			}
+
+			ret = SMFIS_REJECT;
+			result = DMARC_RESULT_REJECT;
+		}
+
+		if (conf->conf_copyfailsto != NULL)
+		{
+			status = dmarcf_addrcpt(ctx, conf->conf_copyfailsto);
+			if (status != MI_SUCCESS && conf->conf_dolog)
+			{
+				syslog(LOG_ERR, "%s: smfi_addrcpt() failed",
+				       dfc->mctx_jobid);
+			}
+		}
+
+		break;
+
+	  case DMARC_POLICY_QUARANTINE:		/* Explicit quarantine */
+		aresult = "fail";
+		ret = SMFIS_CONTINUE;
+
+		if (conf->conf_rejectfail && random() % 100 < pct)
+		{
+			snprintf(replybuf, sizeof replybuf,
+			         "quarantined by DMARC policy for %s",
+			         pdomain);
+
+			status = smfi_quarantine(ctx, replybuf);
+			if (status != MI_SUCCESS && conf->conf_dolog)
+			{
+				syslog(LOG_ERR, "%s: smfi_quarantine() failed",
+				       dfc->mctx_jobid);
+			}
+
+			ret = SMFIS_ACCEPT;
+			result = DMARC_RESULT_QUARANTINE;
+		}
+
+		if (conf->conf_copyfailsto != NULL)
+		{
+			status = dmarcf_addrcpt(ctx, conf->conf_copyfailsto);
+			if (status != MI_SUCCESS && conf->conf_dolog)
+			{
+				syslog(LOG_ERR, "%s: smfi_addrcpt() failed",
+				       dfc->mctx_jobid);
+			}
+		}
+
+		break;
+
+	  default:
+		aresult = "temperror";
+		ret = SMFIS_TEMPFAIL;
+		result = DMARC_RESULT_TEMPFAIL;
+		break;
+	}
+
+	/* ARC override
+	** If DMARC is in failure mode, we will allow the message provided that arc
+	** information is valid: arc=pass, arc.chain is present, and all listed
+	** domains in the chain are whitelisted.
+	**
+	** Additional logging is provided when DMARC is in failure mode and arc=pass
+	** but authentication still fails because of an invalid arc.chain to assist
+	** with administrative debugging.
+	*/
+	if (result == DMARC_RESULT_REJECT &&
+	    dfc->mctx_arcpass == ARES_RESULT_PASS &&
+	    dfc->mctx_arcpolicypass != DMARC_ARC_POLICY_RESULT_PASS &&
+	    conf->conf_dolog)
+	{
+		syslog(LOG_NOTICE,
+		       "%s: ARC pass, policy fail > continuing DMARC eval",
+		       dfc->mctx_jobid);
+	}
+
+	if (result == DMARC_RESULT_REJECT && dfc->mctx_arcpolicypass == DMARC_ARC_POLICY_RESULT_PASS)
+	{
+		ret = SMFIS_ACCEPT;
+		result = DMARC_RESULT_ACCEPT;
+		if (conf->conf_dolog)
+		{
+			syslog(LOG_NOTICE,
+			       "%s: ARC pass, policy pass > overriding DMARC fail",
+			       dfc->mctx_jobid);
+		}
+	}
+
+	/* append arc override to historyfile
+	**
+	**  <reason>
+	**    <type>local_policy</type>
+	**	  <comment>
+	**	    arc=[status] as[N].d=dN.example.com as[N].s=sN
+	**          .. as[1].d=d1.example.com as[1].s=s1 client-ip[1]=10.10.10.13
+	**	  </comment>
+	**  </reason>
+	**
+	** Where:
+	**   arc_policy 1 json:[
+	**                         { i=2, d = d2.example, s = s2, ip = addr2 },
+	**                         { i=1, d = d1.example, s = s1, ip = addr1 }
+	**                     ]
+	*/
+	dmarcf_dstring_printf(dfc->mctx_histbuf, "arc %d\n",
+	                      dfc->mctx_arcpass);
+
+	/*
+	** iterate through arcseal headers and add results to report
+	*/
+	u_char arcseal_str[HIST_MAX_ARCSEAL_LIST_LEN + 1] = { '\0' };
+	u_char arcseal_buf[HIST_MAX_ARCSEAL_LEN + 1];
+	struct arcares arcares;
+	struct arcares_arc_field arcares_arc_field;
+
+	for (as_hdr = dfc->mctx_ashead, c = 0;
+	     dfc->mctx_aarhead != NULL && as_hdr != NULL;
+	     as_hdr = as_hdr->arcseal_next, c++)
+	{
+		/* fetch smtp.client_ip from aar */
+		if (opendmarc_arcares_list_pluck(as_hdr->arcseal.instance, dfc->mctx_aarhead, &arcares) == 0)
+			(void) opendmarc_arcares_arc_parse(arcares.arc, &arcares_arc_field);
+
+		snprintf(arcseal_buf, sizeof arcseal_buf,
+		         "%s{ \"i\": %d, \"d\":\"%s\", \"s\":\"%s\", \"ip\":\"%s\" }",
+		         (c > 0) ? ", " : "",
+		         as_hdr->arcseal.instance,
+		         as_hdr->arcseal.signature_domain,
+		         as_hdr->arcseal.signature_selector,
+			 arcares_arc_field.smtpclientip);
+		strlcat(arcseal_str, (const char *)arcseal_buf, sizeof arcseal_str);
+	}
+
+	dmarcf_dstring_printf(dfc->mctx_histbuf,
+	                      "arc_policy %d json:[%s]\n",
+	                      dfc->mctx_arcpolicypass,
+	                      arcseal_str);
+
+	/* prepare human readable dispositon string for later processing */
+	switch (result)
+	{
+	  case DMARC_RESULT_REJECT:
+		adisposition = "reject";
+		break;
+
+	  case DMARC_RESULT_QUARANTINE:
+		adisposition = "quarantine";
+		break;
+
+	  default:
+		adisposition = "none";
+		break;
+	}
+
+	if (conf->conf_dolog)
+	{
+		syslog(LOG_INFO, "%s: %s %s", dfc->mctx_jobid,
+		       dfc->mctx_fromdomain, aresult);
+	}
+
+	/* if the final action isn't TEMPFAIL or REJECT, add an A-R field */
+	if (ret != SMFIS_TEMPFAIL && ret != SMFIS_REJECT)
+	{
+		snprintf(header, sizeof header,
+#if WITH_SPF
+		         "%s%s%s; dmarc=%s (p=%s dis=%s) header.from=%s%s",
+		         authservid,
+		         conf->conf_authservidwithjobid ? "/" : "",
+		         conf->conf_authservidwithjobid ? dfc->mctx_jobid : "",
+		         aresult, apolicy, adisposition, dfc->mctx_fromdomain, spfheader);
+#else
+		         "%s%s%s; dmarc=%s (p=%s dis=%s) header.from=%s",
+		         authservid,
+		         conf->conf_authservidwithjobid ? "/" : "",
+		         conf->conf_authservidwithjobid ? dfc->mctx_jobid : "",
+		         aresult, apolicy, adisposition, dfc->mctx_fromdomain);
+#endif
+		if (dmarcf_insheader(ctx, 1, AUTHRESULTSHDR,
+		                     header) == MI_FAILURE)
+		{
+			if (conf->conf_dolog)
+			{
+				syslog(LOG_ERR,
+				       "%s: %s header add failed",
+				       dfc->mctx_jobid,
+				       AUTHRESULTSHDR);
+			}
+		}
+	}
+
+	dmarcf_dstring_printf(dfc->mctx_histbuf, "action %d\n", result);
+
+
+	/*
 	**  Generate a failure report.
 	*/
 
@@ -3371,236 +3602,6 @@ mlfi_eom(SMFICTX *ctx)
 			}
 		}
 	}
-
-	/*
-	**  Enact policy based on DMARC results.
-	*/
-
-	result = DMARC_RESULT_ACCEPT;
-	ret = SMFIS_ACCEPT;
-
-	switch (policy)
-	{
-	  case DMARC_POLICY_ABSENT:		/* No DMARC record found */
-	  case DMARC_FROM_DOMAIN_ABSENT:	/* No From: domain */
-		aresult = "none";
-		break;
-
-	  case DMARC_POLICY_NONE:		/* Alignment failed, but policy is none: */
-		aresult = "fail";		/* Accept and report */
-		break;
-
-	  case DMARC_POLICY_PASS:		/* Explicit accept */
-		aresult = "pass";
-		break;
-
-	  case DMARC_POLICY_REJECT:		/* Explicit reject */
-		aresult = "fail";
-		ret = SMFIS_CONTINUE;
-
-		if (conf->conf_rejectfail && random() % 100 < pct)
-		{
-			snprintf(replybuf, sizeof replybuf,
-			         "rejected by DMARC policy for %s", pdomain);
-
-			status = dmarcf_setreply(ctx, DMARC_REJECT_SMTP,
-			                         DMARC_REJECT_ESC, replybuf);
-			if (status != MI_SUCCESS && conf->conf_dolog)
-			{
-				syslog(LOG_ERR, "%s: smfi_setreply() failed",
-				       dfc->mctx_jobid);
-			}
-
-			ret = SMFIS_REJECT;
-			result = DMARC_RESULT_REJECT;
-		}
-
-		if (conf->conf_copyfailsto != NULL)
-		{
-			status = dmarcf_addrcpt(ctx, conf->conf_copyfailsto);
-			if (status != MI_SUCCESS && conf->conf_dolog)
-			{
-				syslog(LOG_ERR, "%s: smfi_addrcpt() failed",
-				       dfc->mctx_jobid);
-			}
-		}
-
-		break;
-
-	  case DMARC_POLICY_QUARANTINE:		/* Explicit quarantine */
-		aresult = "fail";
-		ret = SMFIS_CONTINUE;
-
-		if (conf->conf_rejectfail && random() % 100 < pct)
-		{
-			snprintf(replybuf, sizeof replybuf,
-			         "quarantined by DMARC policy for %s",
-			         pdomain);
-
-			status = smfi_quarantine(ctx, replybuf);
-			if (status != MI_SUCCESS && conf->conf_dolog)
-			{
-				syslog(LOG_ERR, "%s: smfi_quarantine() failed",
-				       dfc->mctx_jobid);
-			}
-
-			ret = SMFIS_ACCEPT;
-			result = DMARC_RESULT_QUARANTINE;
-		}
-
-		if (conf->conf_copyfailsto != NULL)
-		{
-			status = dmarcf_addrcpt(ctx, conf->conf_copyfailsto);
-			if (status != MI_SUCCESS && conf->conf_dolog)
-			{
-				syslog(LOG_ERR, "%s: smfi_addrcpt() failed",
-				       dfc->mctx_jobid);
-			}
-		}
-
-		break;
-
-	  default:
-		aresult = "temperror";
-		ret = SMFIS_TEMPFAIL;
-		result = DMARC_RESULT_TEMPFAIL;
-		break;
-	}
-
-	/* ARC override
-	** If DMARC is in failure mode, we will allow the message provided that arc
-	** information is valid: arc=pass, arc.chain is present, and all listed
-	** domains in the chain are whitelisted.
-	**
-	** Additional logging is provided when DMARC is in failure mode and arc=pass
-	** but authentication still fails because of an invalid arc.chain to assist
-	** with administrative debugging.
-	*/
-	if (result == DMARC_RESULT_REJECT &&
-	    dfc->mctx_arcpass == ARES_RESULT_PASS &&
-	    dfc->mctx_arcpolicypass != DMARC_ARC_POLICY_RESULT_PASS &&
-	    conf->conf_dolog)
-	{
-		syslog(LOG_NOTICE,
-		       "%s: ARC pass, policy fail > continuing DMARC eval",
-		       dfc->mctx_jobid);
-	}
-
-	if (result == DMARC_RESULT_REJECT && dfc->mctx_arcpolicypass == DMARC_ARC_POLICY_RESULT_PASS)
-	{
-		ret = SMFIS_ACCEPT;
-		result = DMARC_RESULT_ACCEPT;
-		if (conf->conf_dolog)
-		{
-			syslog(LOG_NOTICE,
-			       "%s: ARC pass, policy pass > overriding DMARC fail",
-			       dfc->mctx_jobid);
-		}
-	}
-
-	/* append arc override to historyfile
-	**
-	**  <reason>
-	**    <type>local_policy</type>
-	**	  <comment>
-	**	    arc=[status] as[N].d=dN.example.com as[N].s=sN
-	**          .. as[1].d=d1.example.com as[1].s=s1 client-ip[1]=10.10.10.13
-	**	  </comment>
-	**  </reason>
-	**
-	** Where:
-	**   arc_policy 1 json:[
-	**                         { i=2, d = d2.example, s = s2, ip = addr2 },
-	**                         { i=1, d = d1.example, s = s1, ip = addr1 }
-	**                     ]
-	*/
-	dmarcf_dstring_printf(dfc->mctx_histbuf, "arc %d\n",
-	                      dfc->mctx_arcpass);
-
-	/*
-	** iterate through arcseal headers and add results to report
-	*/
-	u_char arcseal_str[HIST_MAX_ARCSEAL_LIST_LEN + 1] = { '\0' };
-	u_char arcseal_buf[HIST_MAX_ARCSEAL_LEN + 1];
-	struct arcares arcares;
-	struct arcares_arc_field arcares_arc_field;
-
-	for (as_hdr = dfc->mctx_ashead, c = 0;
-	     dfc->mctx_aarhead != NULL && as_hdr != NULL;
-	     as_hdr = as_hdr->arcseal_next, c++)
-	{
-		/* fetch smtp.client_ip from aar */
-		if (opendmarc_arcares_list_pluck(as_hdr->arcseal.instance, dfc->mctx_aarhead, &arcares) == 0)
-			(void) opendmarc_arcares_arc_parse(arcares.arc, &arcares_arc_field);
-
-		snprintf(arcseal_buf, sizeof arcseal_buf,
-		         "%s{ \"i\": %d, \"d\":\"%s\", \"s\":\"%s\", \"ip\":\"%s\" }",
-		         (c > 0) ? ", " : "",
-		         as_hdr->arcseal.instance,
-		         as_hdr->arcseal.signature_domain,
-		         as_hdr->arcseal.signature_selector,
-			 arcares_arc_field.smtpclientip);
-		strlcat(arcseal_str, (const char *)arcseal_buf, sizeof arcseal_str);
-	}
-
-	dmarcf_dstring_printf(dfc->mctx_histbuf,
-	                      "arc_policy %d json:[%s]\n",
-	                      dfc->mctx_arcpolicypass,
-	                      arcseal_str);
-
-	/* prepare human readable dispositon string for later processing */
-	switch (result)
-	{
-	  case DMARC_RESULT_REJECT:
-		adisposition = "reject";
-		break;
-
-	  case DMARC_RESULT_QUARANTINE:
-		adisposition = "quarantine";
-		break;
-
-	  default:
-		adisposition = "none";
-		break;
-	}
-
-	if (conf->conf_dolog)
-	{
-		syslog(LOG_INFO, "%s: %s %s", dfc->mctx_jobid,
-		       dfc->mctx_fromdomain, aresult);
-	}
-
-	/* if the final action isn't TEMPFAIL or REJECT, add an A-R field */
-	if (ret != SMFIS_TEMPFAIL && ret != SMFIS_REJECT)
-	{
-		snprintf(header, sizeof header,
-#if WITH_SPF
-		         "%s%s%s; dmarc=%s (p=%s dis=%s) header.from=%s%s",
-		         authservid,
-		         conf->conf_authservidwithjobid ? "/" : "",
-		         conf->conf_authservidwithjobid ? dfc->mctx_jobid : "",
-		         aresult, apolicy, adisposition, dfc->mctx_fromdomain, spfheader);
-#else
-		         "%s%s%s; dmarc=%s (p=%s dis=%s) header.from=%s",
-		         authservid,
-		         conf->conf_authservidwithjobid ? "/" : "",
-		         conf->conf_authservidwithjobid ? dfc->mctx_jobid : "",
-		         aresult, apolicy, adisposition, dfc->mctx_fromdomain);
-#endif
-		if (dmarcf_insheader(ctx, 1, AUTHRESULTSHDR,
-		                     header) == MI_FAILURE)
-		{
-			if (conf->conf_dolog)
-			{
-				syslog(LOG_ERR,
-				       "%s: %s header add failed",
-				       dfc->mctx_jobid,
-				       AUTHRESULTSHDR);
-			}
-		}
-	}
-
-	dmarcf_dstring_printf(dfc->mctx_histbuf, "action %d\n", result);
 
 	/*
 	**  Record activity in the history file.
