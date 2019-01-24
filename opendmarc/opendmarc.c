@@ -2316,7 +2316,8 @@ mlfi_eom(SMFICTX *ctx)
 	    dmarcf_findheader(dfc, "From", 1) != NULL)
 		reqhdrs_error = "not exactly one From field";
 
-	if (dmarcf_findheader(dfc, "Date", 0) == NULL ||
+	else if ((dmarcf_findheader(dfc, "Date", 0) == NULL
+	     && strcmp(from->hdr_value, "Yahoo! Mail AntiSpam Feedback <feedback@arf.mail.yahoo.com>") != 0)||
 	    dmarcf_findheader(dfc, "Date", 1) != NULL)
 		reqhdrs_error = "not exactly one Date field";
 
