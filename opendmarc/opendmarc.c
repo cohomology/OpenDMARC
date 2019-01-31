@@ -3121,17 +3121,17 @@ mlfi_eom(SMFICTX *ctx)
 	switch (apused == DMARC_USED_POLICY_IS_SP ? sp : p)
 	{
 	  case DMARC_RECORD_P_QUARANTINE:
-		apolicy = "quarantine";
+		apolicy = apused == DMARC_USED_POLICY_IS_SP ? "sp=quarantine" : "p=quarantine";
 		break;
 
 	  case DMARC_RECORD_P_REJECT:
-		apolicy = "reject";
+		apolicy = apused == DMARC_USED_POLICY_IS_SP ? "sp=reject" : "p=reject";
 		break;
 
 	  case DMARC_RECORD_P_UNSPECIFIED:
 	  case DMARC_RECORD_P_NONE:
 	  default:
-		apolicy = "none";
+		apolicy = apused == DMARC_USED_POLICY_IS_SP ? "sp=none" : "p=none";
 		break;
 	}
 
@@ -3346,13 +3346,13 @@ mlfi_eom(SMFICTX *ctx)
 	{
 		snprintf(header, sizeof header,
 #if WITH_SPF
-		         "%s%s%s; dmarc=%s (p=%s dis=%s) header.from=%s%s",
+		         "%s%s%s; dmarc=%s (%s dis=%s) header.from=%s%s",
 		         authservid,
 		         conf->conf_authservidwithjobid ? "/" : "",
 		         conf->conf_authservidwithjobid ? dfc->mctx_jobid : "",
 		         aresult, apolicy, adisposition, dfc->mctx_fromdomain, spfheader);
 #else
-		         "%s%s%s; dmarc=%s (p=%s dis=%s) header.from=%s",
+		         "%s%s%s; dmarc=%s (%s dis=%s) header.from=%s",
 		         authservid,
 		         conf->conf_authservidwithjobid ? "/" : "",
 		         conf->conf_authservidwithjobid ? dfc->mctx_jobid : "",
