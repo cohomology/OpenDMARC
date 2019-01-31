@@ -333,6 +333,13 @@ default is to use the value of
 .I AuthservID.
 
 .TP
+.I TweakQuarantine (string)
+Valid options are "R" and "A".  When "R" p=quarantine is handled as p=reject,
+when "A" p=quarantine is handled as p=none.  The purpose is never to have
+messages in the quarantine.  This does not influence whether failure reports
+are generated.
+
+.TP
 .I UMask (integer)
 Requests a specific permissions mask to be used for file creation.
 This only really applies to creation of the socket when

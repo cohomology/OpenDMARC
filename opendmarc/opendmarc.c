@@ -190,6 +190,7 @@ struct dmarcf_config
 	struct list *		conf_domainwhitelist;
 	struct hsearch_data *	conf_domainwhitelisthash;
 	unsigned int		conf_domainwhitelisthashcount;
+	unsigned char		conf_tweakquarantine;//0 - handle p=quarantine as such, 1 - handle as reject, 2 - handle as none
 };
 
 /* LIST -- basic linked list of strings */
@@ -1298,6 +1299,15 @@ dmarcf_config_load(struct config *data, struct dmarcf_config *conf,
 		(void) config_get(data, "TrustedAuthservIDs", &str, sizeof str);
 		if (str != NULL)
 			dmarcf_mkarray(str, ",", &conf->conf_trustedauthservids);
+
+		str = NULL;
+		(void) config_get(data, "TweakQuarantine", &str, sizeof str);
+		if (str != NULL) {
+		  if (str[0] == 'r' || str[0] == 'R') conf->conf_tweakquarantine = 1;
+		  else if (str[0] == 'a' || str[0] == 'A') conf->conf_tweakquarantine = 2;
+		  else syslog(LOG_CRIT, "configuration option TweakQuarantine value %s not recognized", str);
+		}
+		else conf->conf_tweakquarantine = 0;
 
 		str = NULL;
 		(void) config_get(data, "IgnoreMailFrom", &str, sizeof str);
@@ -3196,9 +3206,17 @@ mlfi_eom(SMFICTX *ctx)
 				syslog(LOG_ERR, "%s: smfi_quarantine() failed",
 				       dfc->mctx_jobid);
 			}
-
-			ret = SMFIS_ACCEPT;
-			result = DMARC_RESULT_QUARANTINE;
+			switch (conf->conf_tweakquarantine) {
+			case 0:
+			        ret = SMFIS_ACCEPT;
+				result = DMARC_RESULT_QUARANTINE;
+				break;
+			case 1:
+				ret = SMFIS_REJECT;
+				result = DMARC_RESULT_REJECT;
+				break;
+			case 2: break;//handle as p=none
+			}
 		}
 
 		if (conf->conf_copyfailsto != NULL)
@@ -3506,16 +3524,22 @@ mlfi_eom(SMFICTX *ctx)
 			                      cc->cctx_ipstr, timebuf);
 			switch (result) {
 			  case DMARC_RESULT_REJECT:
+			    if (policy == DMARC_POLICY_QUARANTINE)
+				dmarcf_dstring_printf(dfc->mctx_afrf, "rejected, as this is how policy \"quarantine\" is handled here.\n\n");
+			    else
 				dmarcf_dstring_printf(dfc->mctx_afrf, "rejected.\n\n");
 				break;
 			  case DMARC_RESULT_QUARANTINE:
-				dmarcf_dstring_printf(dfc->mctx_afrf, "quarantined.\n\n");
+				dmarcf_dstring_printf(dfc->mctx_afrf, "put in quarantine.\n\n");
 				break;
 			  case DMARC_RESULT_TEMPFAIL:
 				dmarcf_dstring_printf(dfc->mctx_afrf, "temporary rejected.\n\n");
 				break;
 			  case DMARC_RESULT_ACCEPT:
-				dmarcf_dstring_printf(dfc->mctx_afrf, "delivered.\n\n");
+				if (conf->conf_tweakquarantine == 2 && policy == DMARC_POLICY_QUARANTINE)
+				    dmarcf_dstring_printf(dfc->mctx_afrf, "delivered, as policy \"quarantine\" is handled here as p=none.\n\n");
+				else
+				    dmarcf_dstring_printf(dfc->mctx_afrf, "delivered.\n\n");
 				break;
 			  default: /* impossible */
 				assert(0);

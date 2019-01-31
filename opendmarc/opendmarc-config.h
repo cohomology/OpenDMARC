@@ -53,6 +53,7 @@ struct configdef dmarcf_config[] =
 	{ "SyslogFacility",		CONFIG_TYPE_STRING,	FALSE },
 	{ "TestDNSData",		CONFIG_TYPE_STRING,	FALSE },
 	{ "TrustedAuthservIDs",		CONFIG_TYPE_STRING,	FALSE },
+	{ "TweakQuarantine",		CONFIG_TYPE_STRING,	FALSE },
 	{ "UMask",			CONFIG_TYPE_INTEGER,	FALSE },
 	{ "Userid",			CONFIG_TYPE_STRING,	FALSE },
 	{ NULL,				(u_int) -1,		FALSE }
