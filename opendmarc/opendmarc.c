@@ -185,7 +185,6 @@ struct dmarcf_config
 	char *			conf_authservid;
 	char *			conf_historyfile;
 	char *			conf_pslist;
-	char *			conf_ignorelist;
 	char **			conf_trustedauthservids;
 	char **			conf_ignoredomains;
 	struct list *		conf_domainwhitelist;
