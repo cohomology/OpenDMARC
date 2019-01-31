@@ -3032,10 +3032,15 @@ mlfi_eom(SMFICTX *ctx)
 
 		snprintf(header, sizeof header,
 #if WITH_SPF
-		         "%s; dmarc=permerror header.from=%s%s",
-		         authservid, dfc->mctx_fromdomain, spfheader);
+		         "%s%s%s; dmarc=permerror header.from=%s%s",
+		         authservid,
+		         conf->conf_authservidwithjobid ? "/" : "",
+		         conf->conf_authservidwithjobid ? dfc->mctx_jobid : "",
+			 dfc->mctx_fromdomain, spfheader);
 #else
-		         "%s; dmarc=permerror header.from=%s",
+		         "%s%s%s; dmarc=permerror header.from=%s",
+		         conf->conf_authservidwithjobid ? "/" : "",
+		         conf->conf_authservidwithjobid ? dfc->mctx_jobid : "",
 		         authservid, dfc->mctx_fromdomain);
 #endif
 
