@@ -2971,17 +2971,17 @@ mlfi_eom(SMFICTX *ctx)
 
 			if (spf_mode == DMARC_POLICY_SPF_ORIGIN_HELO)
 			{
-				snprintf(spfheader, sizeof spfheader,
-					 "; spf=%s smtp.helo=%s",
-					 pass_fail, use_domain);
+				if (spf_result != DMARC_POLICY_SPF_OUTCOME_PASS)
+					snprintf(spfheader, sizeof spfheader, "; spf=%s smtp.helo=%s (%s)", pass_fail, use_domain, human);
+				else
+					snprintf(spfheader, sizeof spfheader, "; spf=pass smtp.helo=%s", use_domain);
 			}
 			else
 			{
-				snprintf(spfheader, sizeof spfheader,
-					 "; spf=%s smtp.mailfrom=%s",
-					 pass_fail, use_domain);
-
-
+				if (spf_result != DMARC_POLICY_SPF_OUTCOME_PASS)
+					snprintf(spfheader, sizeof spfheader, "; spf=%s smtp.mailfrom=%s (%s)", pass_fail, use_domain, human);
+				else
+					snprintf(spfheader, sizeof spfheader, "; spf=pass smtp.mailfrom=%s", use_domain);
 			}
 
 			if (conf->conf_dolog)
