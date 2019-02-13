@@ -2384,8 +2384,10 @@ mlfi_eom(SMFICTX *ctx)
 			       dfc->mctx_jobid);
 		}
 
-		if (conf->conf_reqhdrs)
+		if (conf->conf_reqhdrs) {
+			dmarcf_setreply(ctx, DMARC_REJECT_SMTP, DMARC_REJECT_ESC, "unable to parse From: header field");
 			return SMFIS_REJECT;
+		}
 		else
 			return SMFIS_ACCEPT;
 	}
