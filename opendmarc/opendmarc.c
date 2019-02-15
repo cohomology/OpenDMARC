@@ -3197,7 +3197,7 @@ mlfi_eom(SMFICTX *ctx)
 		if (conf->conf_rejectfail && random() % 100 < pct)
 		{
 			snprintf(replybuf, sizeof replybuf,
-			         "quarantined by DMARC policy for %s",
+			         "put in quarantine by DMARC policy for %s",
 			         pdomain);
 
 			status = smfi_quarantine(ctx, replybuf);
