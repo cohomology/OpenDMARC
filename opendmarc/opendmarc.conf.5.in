@@ -163,7 +163,9 @@ formatted per RFC6591.
 When failure reports are enabled and one is to be generated, always send one
 to the address(es) specified here.  If a failure report is requested by
 the domain owner, the address(es) are added in a Bcc: field.  If no request
-is made, they address(es) are used in a To: field.  There is no default.
+is made, they address(es) are used in a To: field.  The default is not to send
+copies of the reports to addresses, other than the requested by the sending
+domain owner.
 
 .TP
 .I FailureReportsOnNone (Boolean)
@@ -243,11 +245,13 @@ the message.  Instead, an Authentication-Results header field will be added.
 
 .TP
 .I ReportCommand (string)
-Indicates the shell command to which failure reports should be passed for
-delivery when
+Indicates the shell command to which message-specific failure reports should be
+passed for delivery when
 .I FailureReports
 is enabled.  Defaults to
 .I /usr/sbin/sendmail -t -odq.
+Use -f '<>' to send emails with empty RFC5821.From or -N never to request
+sending the reports with the NOTIFY=NEVER service extension (RFC3461).
 
 .TP
 .I RequiredHeaders (Boolean)
