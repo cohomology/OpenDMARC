@@ -17,6 +17,7 @@ opendmarc*.gz
 opendmarc*.gz.sha1
 opendmarc*.gz.md5
 opendmarc*.gz.asc
+opendmarc-importstats
 *.orig
 *.rej
 HOURS
