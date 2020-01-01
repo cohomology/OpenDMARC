@@ -627,7 +627,7 @@ opendmarc_policy_query_dmarc_xdomain(DMARC_POLICY_T *pctx, u_char *uri)
 			continue;
 		}
 	}
-	if (dns_reply == NETDB_SUCCESS && buf != NULL)
+	if (dns_reply == NETDB_SUCCESS)
 	{
 		/* Must include DMARC version */
 		if (strncasecmp((char *)buf, "v=DMARC1", sizeof buf) == 0)
@@ -656,7 +656,7 @@ opendmarc_policy_query_dmarc_xdomain(DMARC_POLICY_T *pctx, u_char *uri)
 			continue;
 		}
 	}
-	if (dns_reply == NETDB_SUCCESS && buf != NULL)
+	if (dns_reply == NETDB_SUCCESS)
 	{
 		/* Must include DMARC version */
 		if (strncasecmp((char *)buf, "v=DMARC1", sizeof buf) == 0)
