@@ -207,6 +207,12 @@ typedef struct {
 
 #define OPENDMARC_DEFAULT_HASH_TABLESIZE	(2048)
 
+#if defined(__GNUC__) || defined(__clang)
+#  define OPENDMARC_ASSUME(cond) do { if (!(cond)) __builtin_unreachable(); } while (0)
+#else
+#  define OPENDMARC_ASSUME(cond)
+#endif 
+
 OPENDMARC_HASH_CTX *	opendmarc_hash_init(size_t tablesize);
 OPENDMARC_HASH_CTX *	opendmarc_hash_shutdown(OPENDMARC_HASH_CTX *hctx);
 void			opendmarc_hash_set_callback(OPENDMARC_HASH_CTX *hctx, void (*callback)(void *));

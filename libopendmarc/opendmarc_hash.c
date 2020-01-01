@@ -74,6 +74,24 @@ opendmarc_hash_string(char *str, size_t limit)
 	return hash % limit;
 }
 
+static uint64_t 
+opendmarc_next_pow2m1(uint64_t x) 
+{
+  x |= x>>1;
+	x |= x>>2;
+	x |= x>>4;
+	x |= x>>8;
+	x |= x>>16;
+	x |= x>>32;
+  return x;
+}
+
+static uint64_t
+opendmarc_next_pow2(uint64_t x) 
+{ 
+  return opendmarc_next_pow2m1(x-1)+1;
+}
+
 /********************************************************************
 ** OPENDMARC_HASH_INIT -- Allocate and receive a context pointer
 **
@@ -110,36 +128,26 @@ opendmarc_hash_init(size_t tablesize)
 	if (tablesize == 0)
 		hctx->tablesize = OPENDMARC_DEFAULT_HASH_TABLESIZE;
 	else
-		hctx->tablesize = tablesize;
+  {
+    hctx->tablesize = tablesize;
+    if ((hctx->tablesize & (hctx->tablesize - 1)) != 0)  
+      hctx->tablesize = opendmarc_next_pow2(hctx->tablesize);
+    /* 
+     * If buckets is too small, make it min sized. 
+     */
+    if (hctx->tablesize < OPENDMARC_MIN_SHELVES)
+      hctx->tablesize = OPENDMARC_MIN_SHELVES;
+
+    /* 
+     * If it's too large, cap it. 
+     */
+    if (hctx->tablesize > OPENDMARC_MAX_SHELVES)
+      hctx->tablesize = OPENDMARC_MAX_SHELVES; 
+  }
 
 	hctx->freefunct = NULL;
 
-	/* 
-	 * If buckets is too small, make it min sized. 
-	 */
-	if (hctx->tablesize < OPENDMARC_MIN_SHELVES)
-		hctx->tablesize = OPENDMARC_MIN_SHELVES;
-
-	/* 
-	 * If it's too large, cap it. 
-	 */
-	if (hctx->tablesize > OPENDMARC_MAX_SHELVES)
-		hctx->tablesize = OPENDMARC_MAX_SHELVES;
-
-	/* 
-	 * If it's is not a power of two in size, round up. 
-	 */
-	if ((hctx->tablesize & (hctx->tablesize - 1)) != 0) 
-	{
-		for (p2 = 0; hctx->tablesize != 0; p2++)
-			hctx->tablesize >>= 1;
-
-		if (p2 <= OPENDMARC_MAX_SHELVES_LG2)
-			hctx->tablesize = OPENDMARC_DEFAULT_HASH_TABLESIZE;
-		else
-			hctx->tablesize = 1 << p2;
-	}
-
+  OPENDMARC_ASSUME(hctx->tablesize <= OPENDMARC_MAX_SHELVES);
 	hctx->table = calloc(hctx->tablesize, sizeof(OPENDMARC_HASH_SHELF));
 	if (hctx->table == NULL) 
 	{
