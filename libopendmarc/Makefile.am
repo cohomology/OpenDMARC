@@ -1,5 +1,7 @@
 SUBDIRS=tests docs
+AM_CFLAGS = -D_FORTIFY_SOURCE=2 -fstack-protector-strong -Wno-pointer-sign 
 AM_CPPFLAGS = -I. -I..
+AM_LDFLAGS = -Wl,-z,now
 LDADD = ./libopendmarc.la
 lib_LTLIBRARIES = libopendmarc.la
 libopendmarc_la_SOURCES	= dmarc.h \
